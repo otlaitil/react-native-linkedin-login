@@ -39,18 +39,41 @@ RCT_EXPORT_MODULE();
 @synthesize scopes = _scopes;
 
 
+RCT_EXPORT_METHOD(getAuthorizationCode:(NSString *)clientId redirectUrl:(NSString *)redirectUrl state:(NSString *)state scopes:(NSArray *)scopes)
+{
 
+  self.clientId = clientId;
+  self.redirectUrl = redirectUrl;
+  self.state = state;
+  self.scopes = scopes;
+
+
+  [self.client getAuthorizationCode:^(NSString *code) {
+      NSDictionary *body = @{@"authorizationCode": code};
+      return [self.bridge.eventDispatcher sendDeviceEventWithName:@"linkedinLoginAuthCodeOnly" body:body];
+  }
+                        cancel:^{
+    NSLog(@"Authorization was cancelled by user");
+    return [self.bridge.eventDispatcher sendDeviceEventWithName:@"linkedinLoginAuthCodeOnlyError"
+                                                        body:@{@"error": @"User canceled"}];
+  }                     failure:^(NSError *error) {
+    NSLog(@"Authorization failed %@", error);
+    return [self.bridge.eventDispatcher sendDeviceEventWithName:@"linkedinLoginAuthCodeOnlyError"
+                                                        body:@{@"error": error.description}];
+  }];
+
+}
 
 RCT_EXPORT_METHOD(login:(NSString *)clientId redirectUrl:(NSString *)redirectUrl clientSecret:(NSString *)clientSecret state:(NSString *)state scopes:(NSArray *)scopes)
 {
-  
+
   self.clientId = clientId;
   self.redirectUrl = redirectUrl;
   self.clientSecret = clientSecret;
   self.state = state;
   self.scopes = scopes;
-  
-  
+
+
   [self.client getAuthorizationCode:^(NSString *code) {
     [self.client getAccessToken:code success:^(NSDictionary *accessTokenData) {
       NSString *accessToken = [accessTokenData objectForKey:@"access_token"];
@@ -58,8 +81,7 @@ RCT_EXPORT_METHOD(login:(NSString *)clientId redirectUrl:(NSString *)redirectUrl
       NSDictionary *body = @{@"accessToken": accessToken, @"expiresOn": expiresOn};
       return [self.bridge.eventDispatcher sendDeviceEventWithName:@"linkedinLogin"
                                                           body:body];
-      
-      
+
     }                   failure:^(NSError *error) {
       NSLog(@"Quering accessToken failed %@", error);
       return [self.bridge.eventDispatcher sendDeviceEventWithName:@"linkedinLoginError"

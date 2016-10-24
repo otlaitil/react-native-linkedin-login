@@ -11,6 +11,8 @@ const RNLinkedinLogin = NativeModules.LinkedinLogin;
 
 class LinkedinLogin {
 
+  _authorizationCode = null;
+
   _accessToken = null;
   _expiresOn = null;
 
@@ -136,6 +138,30 @@ class LinkedinLogin {
   setSession(accessToken, expiresOn) {
     this._accessToken = accessToken;
     this._expiresOn = expiresOn;
+  }
+
+  /**
+   * Logs in user, returns only authorization code
+   * @return {promise} returns whether or not the user logged in successfully
+   */
+  loginAuthCodeOnly() {
+    return new Promise((resolve, reject) => {
+      DeviceEventEmitter.addListener('linkedinLoginAuthCodeOnlyError', (error) => {
+        reject(error);
+      });
+
+      DeviceEventEmitter.addListener('linkedinLoginAuthCodeOnly', (data) => {
+        this._authorizationCode = data.authorizationCode;
+        resolve(data);
+      });
+
+      RNLinkedinLogin.getAuthorizationCode(
+        this._clientId,
+        this._redirectUrl,
+        this._state,
+        this._scopes
+      );
+    });
   }
 
   /**
